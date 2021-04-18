@@ -1,0 +1,25 @@
+expr          : term (('+'|'-') term)*
+
+term          : factor (('*'|'/'|'%') factor)*
+
+factor        : ('+'|'-') factor
+              | power
+
+power         : atom ('**' factor)*
+
+atom          : (number|ident)
+              | '(' expr ')'
+
+keyword       : abnormalfloat
+
+ident         : (firstletter|letters)+
+letters       : firstletter | '0'
+firstletter   : 'a'...'z' | 'A'...'Z' | '_' | '$'
+
+number        : int | float
+float         : (digit+ '.' digit+) | fraction | floatpoint | abnormalfloat
+abnormalfloat : 'inf' | 'NaN'
+fraction      : '.' digit+
+floatpoint    : digit+ '.'
+int           : digit+
+digit         : '0'...'9'
