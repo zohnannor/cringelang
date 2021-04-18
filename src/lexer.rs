@@ -4,7 +4,7 @@ use std::{fmt::Display, iter::Peekable};
 use crate::number::Number;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Parentheses {
+pub enum Parenthesis {
     LParen,
     RParen,
     LBracket,
@@ -24,7 +24,7 @@ pub enum Operator {
     Percent,
     Colon,
     Semicolon,
-    Parentheses(Parentheses),
+    Parenthesis(Parenthesis),
 }
 
 #[derive(Debug)]
@@ -126,12 +126,12 @@ fn make_operator(source: &mut Peekable<Chars>) -> Operator {
         '%' => Operator::Percent,
         ':' => Operator::Colon,
         ';' => Operator::Semicolon,
-        '(' => Operator::Parentheses(Parentheses::LParen),
-        ')' => Operator::Parentheses(Parentheses::RParen),
-        '[' => Operator::Parentheses(Parentheses::LBracket),
-        ']' => Operator::Parentheses(Parentheses::RBracket),
-        '{' => Operator::Parentheses(Parentheses::LCurly),
-        '}' => Operator::Parentheses(Parentheses::RCurly),
+        '(' => Operator::Parenthesis(Parenthesis::LParen),
+        ')' => Operator::Parenthesis(Parenthesis::RParen),
+        '[' => Operator::Parenthesis(Parenthesis::LBracket),
+        ']' => Operator::Parenthesis(Parenthesis::RBracket),
+        '{' => Operator::Parenthesis(Parenthesis::LCurly),
+        '}' => Operator::Parenthesis(Parenthesis::RCurly),
         _ => unreachable!(),
     }
 }

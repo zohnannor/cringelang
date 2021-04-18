@@ -1,7 +1,7 @@
 use std::{iter::Peekable, slice::Iter};
 
 use crate::{
-    lexer::{Operator, Parentheses, Token},
+    lexer::{Operator, Parenthesis, Token},
     number::Number,
 };
 
@@ -104,20 +104,20 @@ pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
             Token::Number(n) => ASTNode::Number(*n),
             Token::Ident(ident) => ASTNode::Ident(ident.clone()),
             Token::Operator(op) => match op {
-                Operator::Parentheses(paren) => match paren {
-                    Parentheses::LParen => {
+                Operator::Parenthesis(paren) => match paren {
+                    Parenthesis::LParen => {
                         let expr = parse_expr(tokens)?;
                         let token = tokens.next();
                         match token {
                             Some(token) => match token {
-                                Token::Operator(Operator::Parentheses(Parentheses::RParen)) => expr,
+                                Token::Operator(Operator::Parenthesis(Parenthesis::RParen)) => expr,
                                 Token::Eof => return Err(format!("Unexpected EOF")),
                                 _ => return Err(format!("Expected `)`, found: {:?}", token)),
                             },
                             None => return Err(format!("Unexpected asdadas")),
                         }
                     }
-                    Parentheses::RParen => {
+                    Parenthesis::RParen => {
                         return Err(format!("Syntax error, {}:{}", line!(), column!()))
                     }
                     _ => return Err(format!("Unexpected token: {:?}", token)),
