@@ -4,7 +4,7 @@ use crate::stdlib::number::Number;
 
 use super::lexer::{Operator, Parenthesis, Token};
 
-const KEYWORDS: [&str; 1] = ["let"];
+const KEYWORDS: [&str; 3] = ["let", "inf", "NaN"];
 
 #[derive(Debug)]
 pub enum ASTNode {
@@ -145,7 +145,11 @@ pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
                         Box::new(parse_expr(tokens)?),
                     ));
                 }
-                ASTNode::VarAccess(ident.clone())
+                match ident.as_str() {
+                    "inf" => ASTNode::Number(Number::Float(f64::INFINITY)),
+                    "NaN" => ASTNode::Number(Number::Float(f64::NAN)),
+                    _ => ASTNode::VarAccess(ident.clone()),
+                }
             }
             Token::Operator(op) => match op {
                 Operator::Parenthesis(paren) => match paren {
