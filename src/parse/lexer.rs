@@ -1,7 +1,6 @@
-use std::str::Chars;
-use std::{fmt::Display, iter::Peekable};
+use std::{fmt::Display, iter::Peekable, str::Chars};
 
-use crate::number::Number;
+use crate::stdlib::number::Number;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Parenthesis {
@@ -54,7 +53,7 @@ pub fn lex(source: &String) -> Result<Vec<Token>, String> {
                 source.next();
             }
             _ => {
-                return Err(format!("Unexpected token: {:?}", source.next()));
+                return Err(format!("Unexpected token: `{}`", source.next().unwrap()));
                 source.next();
             }
         }

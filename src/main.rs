@@ -1,19 +1,18 @@
 #![allow(unused)]
 
-use chrono::DateTime;
-use chrono::Utc;
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
-use std::{
-    env,
-    io::{Read, Write},
-};
-use std::{fs, str::Chars};
+mod parse;
+mod stdlib;
 
-mod interpreter;
-mod lexer;
-mod number;
-mod parser;
+use chrono::{DateTime, Utc};
+use parse::{interpreter, lexer, parser, Context};
+use rustyline::{error::ReadlineError, Editor};
+use std::{
+    collections::HashMap,
+    env, fs,
+    io::{Read, Write},
+    str::Chars,
+};
+use stdlib::number::Number;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -29,7 +28,9 @@ fn run_file(filename: &String) {
     let source = fs::read_to_string(filename).unwrap();
     let tokens = lexer::lex(&source).expect("Failed to lex");
     let ast = parser::parse(tokens).expect("Failed to parse");
-    interpreter::visit(ast);
+
+    let mut global_sym_table = Context::new();
+    interpreter::visit(ast, &mut global_sym_table);
 }
 
 fn run_repl() {
@@ -45,6 +46,8 @@ Ctrl-C to exit",
         env::consts::OS,
         env::consts::ARCH
     );
+
+    let mut global_sym_table = Context::new();
 
     loop {
         let mut input = rl.readline(">>> ");
@@ -70,7 +73,7 @@ Ctrl-C to exit",
                     }
                 };
                 // println!("{:?}", ast);
-                let res = interpreter::visit(ast);
+                let res = interpreter::visit(ast, &mut global_sym_table);
                 match res {
                     Ok(res) => println!("{}", res),
                     Err(err) => eprintln!("Runtime error: {}", err),

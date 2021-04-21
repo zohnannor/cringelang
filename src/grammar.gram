@@ -1,3 +1,6 @@
+createvar     : 'let' ident '=' expr
+              : expr
+
 expr          : term (('+'|'-') term)*
 
 term          : factor (('*'|'/'|'%') factor)*
@@ -8,7 +11,9 @@ factor        : ('+'|'-') factor
 power         : atom ('**' factor)*
 
 atom          : (number|ident)
+              : ident '=' expr
               | '(' expr ')'
+
 
 keyword       : abnormalfloat
 

@@ -1,21 +1,56 @@
 use std::{iter::Peekable, slice::Iter};
 
-use crate::{
-    lexer::{Operator, Parenthesis, Token},
-    number::Number,
-};
+use crate::stdlib::number::Number;
+
+use super::lexer::{Operator, Parenthesis, Token};
+
+const KEYWORDS: [&str; 1] = ["let"];
 
 #[derive(Debug)]
 pub enum ASTNode {
     Number(Number),
-    Ident(String),
     UnOp(Operator, Box<ASTNode>),
     BinOp(Box<ASTNode>, Operator, Box<ASTNode>),
+    VarCreate(String, Box<ASTNode>),
+    VarAssign(String, Box<ASTNode>),
+    VarAccess(String),
 }
 
 pub fn parse(tokens: Vec<Token>) -> Result<ASTNode, String> {
     let mut tokens: Peekable<Iter<Token>> = tokens.iter().peekable();
-    parse_expr(&mut tokens)
+    parse_createvar(&mut tokens)
+}
+
+pub fn parse_createvar(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+    match tokens.peek() {
+        Some(Token::Ident(ident)) => match ident.as_str() {
+            "let" => {
+                tokens.next();
+                match tokens.next() {
+                    Some(Token::Ident(var_name)) => {
+                        if KEYWORDS.contains(&var_name.as_str()) {
+                            return Err(format!(
+                                "Expected identifier, found keyword `{}`",
+                                var_name
+                            ));
+                        };
+                        match tokens.next() {
+                            Some(Token::Operator(Operator::Equals)) => {
+                                return Ok(ASTNode::VarCreate(
+                                    var_name.clone(),
+                                    Box::new(parse_expr(tokens)?),
+                                ));
+                            }
+                            _ => return Err(format!("Expected `=`")),
+                        }
+                    }
+                    _ => return Err(format!("Expected identifier")),
+                }
+            }
+            _ => parse_expr(tokens),
+        },
+        _ => parse_expr(tokens),
+    }
 }
 
 pub fn parse_expr(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
@@ -102,7 +137,16 @@ pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
     let atom = match tokens.next() {
         Some(token) => match token {
             Token::Number(n) => ASTNode::Number(*n),
-            Token::Ident(ident) => ASTNode::Ident(ident.clone()),
+            Token::Ident(ident) => {
+                if let Some(Token::Operator(Operator::Equals)) = tokens.peek() {
+                    tokens.next();
+                    return Ok(ASTNode::VarAssign(
+                        ident.clone(),
+                        Box::new(parse_expr(tokens)?),
+                    ));
+                }
+                ASTNode::VarAccess(ident.clone())
+            }
             Token::Operator(op) => match op {
                 Operator::Parenthesis(paren) => match paren {
                     Parenthesis::LParen => {
@@ -111,15 +155,13 @@ pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
                         match token {
                             Some(token) => match token {
                                 Token::Operator(Operator::Parenthesis(Parenthesis::RParen)) => expr,
-                                Token::Eof => return Err(format!("Unexpected EOF")),
+                                Token::Eof => return Err(format!("Expected `)`, found EOF")),
                                 _ => return Err(format!("Expected `)`, found: {:?}", token)),
                             },
-                            None => return Err(format!("Unexpected asdadas")),
+                            _ => unreachable!(),
                         }
                     }
-                    Parenthesis::RParen => {
-                        return Err(format!("Syntax error, {}:{}", line!(), column!()))
-                    }
+                    Parenthesis::RParen => return Err(format!("Expected expression")),
                     _ => return Err(format!("Unexpected token: {:?}", token)),
                 },
                 _ => return Err(format!("Syntax error, {}:{}", line!(), column!())),
