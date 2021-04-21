@@ -29,10 +29,7 @@ pub fn parse_createvar(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, St
                 match tokens.next() {
                     Some(Token::Ident(var_name)) => {
                         if KEYWORDS.contains(&var_name.as_str()) {
-                            return Err(format!(
-                                "Expected identifier, found keyword `{}`",
-                                var_name
-                            ));
+                            return Err(format!("Expected identifier, found `{}`", var_name));
                         };
                         match tokens.next() {
                             Some(Token::Operator(Operator::Equals)) => {
@@ -140,11 +137,14 @@ pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
             Token::Ident(ident) => {
                 if let Some(Token::Operator(Operator::Equals)) = tokens.peek() {
                     tokens.next();
+                    if KEYWORDS.contains(&ident.as_str()) {
+                        return Err(format!("Expected identifier, found `{}`", ident));
+                    };
                     return Ok(ASTNode::VarAssign(
                         ident.clone(),
                         Box::new(parse_expr(tokens)?),
                     ));
-                }
+                };
                 match ident.as_str() {
                     "inf" => ASTNode::Number(Number::Float(f64::INFINITY)),
                     "NaN" => ASTNode::Number(Number::Float(f64::NAN)),
