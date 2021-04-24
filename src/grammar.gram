@@ -10,7 +10,7 @@ factor        : ('+'|'-') factor
 
 power         : atom ('**' factor)*
 
-atom          : (number|ident)
+atom          : (number|ident|bool)
               : ident '=' expr
               | '(' expr ')'
 
@@ -20,6 +20,8 @@ keyword       : abnormalfloat
 ident         : (firstletter|letters)+
 letters       : firstletter | '0'
 firstletter   : 'a'...'z' | 'A'...'Z' | '_' | '$'
+
+bool          : 'true' | 'false'
 
 number        : int | float
 float         : (digit+ '.' digit+) | fraction | floatpoint | abnormalfloat

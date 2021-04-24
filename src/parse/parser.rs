@@ -1,14 +1,14 @@
 use std::{iter::Peekable, slice::Iter};
 
-use crate::stdlib::number::Number;
+use super::tokens::{Operator, Parenthesis, Token};
+use crate::stdlib::{bool::Bool, number::Number};
 
-use super::lexer::{Operator, Parenthesis, Token};
-
-const KEYWORDS: [&str; 3] = ["let", "inf", "NaN"];
+const KEYWORDS: [&str; 5] = ["let", "inf", "NaN", "true", "false"];
 
 #[derive(Debug)]
 pub enum ASTNode {
     Number(Number),
+    Bool(Bool),
     UnOp(Operator, Box<ASTNode>),
     BinOp(Box<ASTNode>, Operator, Box<ASTNode>),
     VarCreate(String, Box<ASTNode>),
@@ -148,6 +148,8 @@ pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
                 match ident.as_str() {
                     "inf" => ASTNode::Number(Number::Float(f64::INFINITY)),
                     "NaN" => ASTNode::Number(Number::Float(f64::NAN)),
+                    "true" => ASTNode::Bool(Bool::True),
+                    "false" => ASTNode::Bool(Bool::False),
                     _ => ASTNode::VarAccess(ident.clone()),
                 }
             }

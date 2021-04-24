@@ -1,38 +1,9 @@
 use std::{fmt::Display, iter::Peekable, str::Chars};
 
+use super::tokens::{Operator, Parenthesis, Token};
 use crate::stdlib::number::Number;
 
-#[derive(Debug, Clone, Copy)]
-pub enum Parenthesis {
-    LParen,
-    RParen,
-    LBracket,
-    RBracket,
-    LCurly,
-    RCurly,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Operator {
-    Equals,
-    Plus,
-    Minus,
-    Star,
-    StarStar,
-    Slash,
-    Percent,
-    Colon,
-    Semicolon,
-    Parenthesis(Parenthesis),
-}
-
-#[derive(Debug)]
-pub enum Token {
-    Number(Number),
-    Ident(String),
-    Operator(Operator),
-    Eof,
-}
+use Operator::*;
 
 pub fn lex(source: &String) -> Result<Vec<Token>, String> {
     let mut tokens = vec![];
@@ -108,29 +79,66 @@ fn make_name(source: &mut Peekable<Chars>) -> String {
 fn make_operator(source: &mut Peekable<Chars>) -> Operator {
     let ch = source.next().unwrap();
     match ch {
-        '=' => Operator::Equals,
-        '+' => Operator::Plus,
-        '-' => Operator::Minus,
-        '*' => match source.peek() {
-            Some(ch) => match ch {
-                '*' => {
-                    source.next();
-                    Operator::StarStar
-                }
-                _ => Operator::Star,
-            },
-            _ => Operator::Star,
-        },
-        '/' => Operator::Slash,
-        '%' => Operator::Percent,
-        ':' => Operator::Colon,
-        ';' => Operator::Semicolon,
-        '(' => Operator::Parenthesis(Parenthesis::LParen),
-        ')' => Operator::Parenthesis(Parenthesis::RParen),
-        '[' => Operator::Parenthesis(Parenthesis::LBracket),
-        ']' => Operator::Parenthesis(Parenthesis::RBracket),
-        '{' => Operator::Parenthesis(Parenthesis::LCurly),
-        '}' => Operator::Parenthesis(Parenthesis::RCurly),
+        '+' => Plus,
+        '-' => Minus,
+        '/' => Slash,
+        '%' => Percent,
+        ':' => Colon,
+        ';' => Semicolon,
+        '|' => Pipe,
+        '&' => Ampersand,
+        '^' => Caret,
+        '.' => Dot,
+        '>' => make_3char_long_operator(source, '=', '>', (Greater, GreaterEquals, GreaterGreater)),
+        '<' => make_3char_long_operator(source, '=', '<', (Less, LessEquals, LessLess)),
+        '=' => make_2char_long_operator(source, '=', (Equals, EqualsEquals)),
+        '*' => make_2char_long_operator(source, '*', (Star, StarStar)),
+        '!' => make_2char_long_operator(source, '=', (Exclamation, ExclamationEquals)),
+        '(' => Parenthesis(Parenthesis::LParen),
+        ')' => Parenthesis(Parenthesis::RParen),
+        '[' => Parenthesis(Parenthesis::LBracket),
+        ']' => Parenthesis(Parenthesis::RBracket),
+        '{' => Parenthesis(Parenthesis::LCurly),
+        '}' => Parenthesis(Parenthesis::RCurly),
         _ => unreachable!(),
+    }
+}
+
+fn make_2char_long_operator(
+    source: &mut Peekable<Chars>,
+    c: char,
+    operators: (Operator, Operator),
+) -> Operator {
+    match source.peek() {
+        Some(&ch) => match ch {
+            ch if ch == c => {
+                source.next();
+                operators.1
+            }
+            _ => operators.0,
+        },
+        _ => operators.0,
+    }
+}
+
+fn make_3char_long_operator(
+    source: &mut Peekable<Chars>,
+    c1: char,
+    c2: char,
+    operators: (Operator, Operator, Operator),
+) -> Operator {
+    match source.peek() {
+        Some(&ch) => match ch {
+            ch if ch == c1 => {
+                source.next();
+                operators.1
+            }
+            ch if ch == c2 => {
+                source.next();
+                operators.2
+            }
+            _ => operators.0,
+        },
+        _ => operators.0,
     }
 }
