@@ -1,5 +1,8 @@
-createvar     : 'let' ident '=' expr
-              : expr
+createvar     : 'let' ident '=' comparison
+              : comparison
+
+comparison    : '!' comparison
+              : expr (('=='|'!='|'>'|'<'|'>='|'<=') expr)*
 
 expr          : term (('+'|'-') term)*
 
@@ -11,9 +14,8 @@ factor        : ('+'|'-') factor
 power         : atom ('**' factor)*
 
 atom          : (number|ident|bool)
-              : ident '=' expr
-              | '(' expr ')'
-
+              : ident '=' comparison
+              | '(' comparison ')'
 
 keyword       : abnormalfloat
 

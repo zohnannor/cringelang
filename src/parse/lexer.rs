@@ -1,4 +1,4 @@
-use std::{fmt::Display, iter::Peekable, str::Chars};
+use std::{iter::Peekable, str::Chars};
 
 use super::tokens::{Operator, Parenthesis, Token};
 use crate::stdlib::number::Number;
@@ -17,7 +17,8 @@ pub fn lex(source: &String) -> Result<Vec<Token>, String> {
             'a'..='z' | 'A'..='Z' | '_' | '$' => {
                 tokens.push(Token::Ident(make_name(&mut source)));
             }
-            '=' | '+' | '-' | '*' | '/' | '%' | ':' | ';' | '(' | ')' | '[' | ']' | '{' | '}' => {
+            '=' | '+' | '-' | '*' | '/' | '%' | '!' | '>' | '<' | ':' | ';' | '(' | ')' | '['
+            | ']' | '{' | '}' => {
                 tokens.push(Token::Operator(make_operator(&mut source)));
             }
             ' ' | '\n' | '\r' | '\t' => {
@@ -25,7 +26,6 @@ pub fn lex(source: &String) -> Result<Vec<Token>, String> {
             }
             _ => {
                 return Err(format!("Unexpected token: `{}`", source.next().unwrap()));
-                source.next();
             }
         }
     }

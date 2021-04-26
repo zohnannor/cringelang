@@ -1,4 +1,5 @@
-use crate::Number;
+use crate::stdlib::number::Number;
+
 #[derive(Debug, Clone, Copy)]
 pub enum Parenthesis {
     LParen,

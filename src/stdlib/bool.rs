@@ -1,4 +1,4 @@
-use super::{number::Number, object::Object};
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Bool {
@@ -6,15 +6,14 @@ pub enum Bool {
     False,
 }
 
-impl Object for Bool {
-    fn repr(&self) -> String {
-        match self {
-            Bool::True => true.to_string(),
-            Bool::False => false.to_string(),
-        }
-    }
-
-    fn bool(&self) -> Bool {
-        *self
+impl Display for Bool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{}",
+            match self {
+                Bool::True => true.to_string(),
+                Bool::False => false.to_string(),
+            }
+        ))
     }
 }

@@ -1,6 +1,4 @@
-use std::{fmt::Display, rc::Rc};
-
-use super::{bool::Bool, object::Object};
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Number {
@@ -17,29 +15,5 @@ impl Display for Number {
                 Number::Float(n) => n.to_string(),
             }
         ))
-    }
-}
-
-impl Object for Number {
-    fn bool(&self) -> Bool {
-        todo!()
-    }
-
-    fn num(&self) -> Result<Number, String> {
-        Ok(*self)
-    }
-
-    fn str(&self) -> String {
-        match self {
-            Number::Int(n) => n.to_string(),
-            Number::Float(n) => n.to_string(),
-        }
-    }
-
-    fn repr(&self) -> String {
-        match self {
-            Number::Int(n) => n.to_string(),
-            Number::Float(n) => n.to_string(),
-        }
     }
 }
