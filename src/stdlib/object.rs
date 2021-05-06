@@ -81,10 +81,10 @@ impl Object {
                 (Number::Float(a), Number::Float(b)) => Number::Float(a * b),
             }),
             (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n * 1),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Float(n * 1.0),
-                (Number::Float(n), Bool::False) => Number::Float(n),
+                (Number::Int(n), Bool::True) => Number::Int(n),
+                (Number::Int(n), Bool::False) => Number::Int(0),
+                (Number::Float(n), Bool::True) => Number::Float(n),
+                (Number::Float(n), Bool::False) => Number::Float(0.0),
             }),
             (Object::Bool(_), Object::Number(_)) => other.mul(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
@@ -116,9 +116,9 @@ impl Object {
             (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
                 (Number::Int(0), _) => Number::Float(f64::INFINITY),
                 (Number::Float(n), _) if n == 0.0 => Number::Float(f64::INFINITY),
-                (Number::Int(n), Bool::True) => Number::Int(n / 1),
+                (Number::Int(n), Bool::True) => Number::Int(n),
                 (Number::Int(n), Bool::False) => Number::Float(f64::NAN),
-                (Number::Float(n), Bool::True) => Number::Float(n / 1.0),
+                (Number::Float(n), Bool::True) => Number::Float(n),
                 (Number::Float(n), Bool::False) => Number::Float(f64::NAN),
             }),
             (Object::Bool(_), Object::Number(_)) => other.div(self)?,
@@ -151,9 +151,9 @@ impl Object {
             (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
                 (Number::Int(0), _) => Number::Float(f64::NAN),
                 (Number::Float(n), _) if n == 0.0 => Number::Float(f64::NAN),
-                (Number::Int(n), Bool::True) => Number::Int(n % 1),
+                (Number::Int(n), Bool::True) => Number::Int(0),
                 (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Float(n % 1.0),
+                (Number::Float(n), Bool::True) => Number::Float(0.0),
                 (Number::Float(n), Bool::False) => Number::Float(n),
             }),
             (Object::Bool(_), Object::Number(_)) => other.r#mod(self)?,
@@ -316,9 +316,9 @@ impl Object {
             }),
             (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
                 (Number::Int(n), Bool::True) => Number::Int(n ^ 1),
-                (Number::Int(n), Bool::False) => Number::Int(n ^ 0),
+                (Number::Int(n), Bool::False) => Number::Int(n),
                 (Number::Float(n), Bool::True) => Number::Int((n as i128) ^ 1),
-                (Number::Float(n), Bool::False) => Number::Int((n as i128) ^ 0),
+                (Number::Float(n), Bool::False) => Number::Int(n as i128),
             }),
             (Object::Bool(_), Object::Number(_)) => other.xor(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {

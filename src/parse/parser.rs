@@ -6,22 +6,22 @@ use crate::stdlib::{bool::Bool, number::Number};
 const KEYWORDS: [&str; 5] = ["let", "inf", "NaN", "true", "false"];
 
 #[derive(Debug)]
-pub enum ASTNode {
+pub enum AstNode {
     Number(Number),
     Bool(Bool),
-    UnOp(Operator, Box<ASTNode>),
-    BinOp(Box<ASTNode>, Operator, Box<ASTNode>),
-    VarCreate(String, Box<ASTNode>),
-    VarAssign(String, Box<ASTNode>),
+    UnOp(Operator, Box<AstNode>),
+    BinOp(Box<AstNode>, Operator, Box<AstNode>),
+    VarCreate(String, Box<AstNode>),
+    VarAssign(String, Box<AstNode>),
     VarAccess(String),
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<ASTNode, String> {
+pub fn parse(tokens: Vec<Token>) -> Result<AstNode, String> {
     let mut tokens: Peekable<Iter<Token>> = tokens.iter().peekable();
     parse_createvar(&mut tokens)
 }
 
-pub fn parse_createvar(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+pub fn parse_createvar(tokens: &mut Peekable<Iter<Token>>) -> Result<AstNode, String> {
     match tokens.peek() {
         Some(Token::Ident(ident)) => match ident.as_str() {
             "let" => {
@@ -32,16 +32,14 @@ pub fn parse_createvar(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, St
                             return Err(format!("Expected identifier, found `{}`", var_name));
                         };
                         match tokens.next() {
-                            Some(Token::Operator(Operator::Equals)) => {
-                                return Ok(ASTNode::VarCreate(
-                                    var_name.clone(),
-                                    Box::new(parse_comparison(tokens)?),
-                                ));
-                            }
-                            _ => return Err(format!("Expected `=`")),
+                            Some(Token::Operator(Operator::Equals)) => Ok(AstNode::VarCreate(
+                                var_name.clone(),
+                                Box::new(parse_comparison(tokens)?),
+                            )),
+                            _ => Err("Expected `=`".to_string()),
                         }
                     }
-                    _ => return Err(format!("Expected identifier")),
+                    _ => Err("Expected identifier".to_string()),
                 }
             }
             _ => parse_comparison(tokens),
@@ -50,10 +48,10 @@ pub fn parse_createvar(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, St
     }
 }
 
-pub fn parse_comparison(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+pub fn parse_comparison(tokens: &mut Peekable<Iter<Token>>) -> Result<AstNode, String> {
     if let Some(Token::Operator(Operator::Exclamation)) = tokens.peek() {
         tokens.next();
-        return Ok(ASTNode::UnOp(
+        return Ok(AstNode::UnOp(
             Operator::Exclamation,
             Box::new(parse_comparison(tokens)?),
         ));
@@ -64,27 +62,27 @@ pub fn parse_comparison(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, S
         match op {
             Operator::EqualsEquals => {
                 tokens.next();
-                left_expr = ASTNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
+                left_expr = AstNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
             }
             Operator::ExclamationEquals => {
                 tokens.next();
-                left_expr = ASTNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
+                left_expr = AstNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
             }
             Operator::Greater => {
                 tokens.next();
-                left_expr = ASTNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
+                left_expr = AstNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
             }
             Operator::Less => {
                 tokens.next();
-                left_expr = ASTNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
+                left_expr = AstNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
             }
             Operator::GreaterEquals => {
                 tokens.next();
-                left_expr = ASTNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
+                left_expr = AstNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
             }
             Operator::LessEquals => {
                 tokens.next();
-                left_expr = ASTNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
+                left_expr = AstNode::BinOp(Box::new(left_expr), *op, Box::new(parse_expr(tokens)?));
             }
             _ => break,
         }
@@ -92,24 +90,24 @@ pub fn parse_comparison(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, S
     Ok(left_expr)
 }
 
-pub fn parse_expr(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+pub fn parse_expr(tokens: &mut Peekable<Iter<Token>>) -> Result<AstNode, String> {
     let mut left_term = parse_term(tokens)?;
     while let Some(Token::Operator(op)) = tokens.peek() {
         match op {
             Operator::Plus => {
                 tokens.next();
-                left_term = ASTNode::BinOp(Box::new(left_term), *op, Box::new(parse_term(tokens)?));
+                left_term = AstNode::BinOp(Box::new(left_term), *op, Box::new(parse_term(tokens)?));
             }
             Operator::Minus => {
                 tokens.next();
-                left_term = ASTNode::BinOp(Box::new(left_term), *op, Box::new(parse_term(tokens)?));
+                left_term = AstNode::BinOp(Box::new(left_term), *op, Box::new(parse_term(tokens)?));
             }
             _ => break,
         }
     }
     Ok(left_term)
 }
-pub fn parse_term(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+pub fn parse_term(tokens: &mut Peekable<Iter<Token>>) -> Result<AstNode, String> {
     let mut left_factor = parse_factor(tokens)?;
 
     while let Some(Token::Operator(op)) = tokens.peek() {
@@ -117,17 +115,17 @@ pub fn parse_term(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
             Operator::Star => {
                 tokens.next();
                 left_factor =
-                    ASTNode::BinOp(Box::new(left_factor), *op, Box::new(parse_factor(tokens)?));
+                    AstNode::BinOp(Box::new(left_factor), *op, Box::new(parse_factor(tokens)?));
             }
             Operator::Slash => {
                 tokens.next();
                 left_factor =
-                    ASTNode::BinOp(Box::new(left_factor), *op, Box::new(parse_factor(tokens)?));
+                    AstNode::BinOp(Box::new(left_factor), *op, Box::new(parse_factor(tokens)?));
             }
             Operator::Percent => {
                 tokens.next();
                 left_factor =
-                    ASTNode::BinOp(Box::new(left_factor), *op, Box::new(parse_factor(tokens)?));
+                    AstNode::BinOp(Box::new(left_factor), *op, Box::new(parse_factor(tokens)?));
             }
             _ => break,
         }
@@ -135,36 +133,36 @@ pub fn parse_term(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
     Ok(left_factor)
 }
 
-pub fn parse_factor(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+pub fn parse_factor(tokens: &mut Peekable<Iter<Token>>) -> Result<AstNode, String> {
     let factor = match tokens.peek() {
         Some(token) => match token {
             Token::Operator(op) => match op {
                 Operator::Plus => {
                     tokens.next();
-                    ASTNode::UnOp(*op, Box::new(parse_factor(tokens)?))
+                    AstNode::UnOp(*op, Box::new(parse_factor(tokens)?))
                 }
                 Operator::Minus => {
                     tokens.next();
-                    ASTNode::UnOp(*op, Box::new(parse_factor(tokens)?))
+                    AstNode::UnOp(*op, Box::new(parse_factor(tokens)?))
                 }
                 _ => parse_power(tokens)?,
             },
-            Token::Eof => return Err(format!("Unexpected EOF")),
+            Token::Eof => return Err("Unexpected EOF".to_string()),
             _ => parse_power(tokens)?,
         },
-        None => return Err(format!("Syntax error")),
+        None => return Err("Syntax error".to_string()),
     };
     Ok(factor)
 }
 
-pub fn parse_power(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+pub fn parse_power(tokens: &mut Peekable<Iter<Token>>) -> Result<AstNode, String> {
     let mut atom = parse_atom(tokens)?;
 
     while let Some(Token::Operator(op)) = tokens.peek() {
         match op {
             Operator::StarStar => {
                 tokens.next();
-                atom = ASTNode::BinOp(Box::new(atom), *op, Box::new(parse_factor(tokens)?));
+                atom = AstNode::BinOp(Box::new(atom), *op, Box::new(parse_factor(tokens)?));
             }
             _ => break,
         }
@@ -172,27 +170,27 @@ pub fn parse_power(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String
     Ok(atom)
 }
 
-pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String> {
+pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<AstNode, String> {
     let atom = match tokens.next() {
         Some(token) => match token {
-            Token::Number(n) => ASTNode::Number(*n),
+            Token::Number(n) => AstNode::Number(*n),
             Token::Ident(ident) => {
                 if let Some(Token::Operator(Operator::Equals)) = tokens.peek() {
                     tokens.next();
                     if KEYWORDS.contains(&ident.as_str()) {
                         return Err(format!("Expected identifier, found `{}`", ident));
                     };
-                    return Ok(ASTNode::VarAssign(
+                    return Ok(AstNode::VarAssign(
                         ident.clone(),
                         Box::new(parse_comparison(tokens)?),
                     ));
                 };
                 match ident.as_str() {
-                    "inf" => ASTNode::Number(Number::Float(f64::INFINITY)),
-                    "NaN" => ASTNode::Number(Number::Float(f64::NAN)),
-                    "true" => ASTNode::Bool(Bool::True),
-                    "false" => ASTNode::Bool(Bool::False),
-                    _ => ASTNode::VarAccess(ident.clone()),
+                    "inf" => AstNode::Number(Number::Float(f64::INFINITY)),
+                    "NaN" => AstNode::Number(Number::Float(f64::NAN)),
+                    "true" => AstNode::Bool(Bool::True),
+                    "false" => AstNode::Bool(Bool::False),
+                    _ => AstNode::VarAccess(ident.clone()),
                 }
             }
             Token::Operator(op) => match op {
@@ -203,18 +201,18 @@ pub fn parse_atom(tokens: &mut Peekable<Iter<Token>>) -> Result<ASTNode, String>
                         match token {
                             Some(token) => match token {
                                 Token::Operator(Operator::Parenthesis(Parenthesis::RParen)) => expr,
-                                Token::Eof => return Err(format!("Expected `)`, found EOF")),
+                                Token::Eof => return Err("Expected `)`, found EOF".to_string()),
                                 _ => return Err(format!("Expected `)`, found: {:?}", token)),
                             },
                             _ => unreachable!(),
                         }
                     }
-                    Parenthesis::RParen => return Err(format!("Expected expression")),
+                    Parenthesis::RParen => return Err("Expected expression".to_string()),
                     _ => return Err(format!("Unexpected token: {:?}", token)),
                 },
                 _ => return Err(format!("Syntax error, {}:{}", line!(), column!())),
             },
-            Token::Eof => return Err(format!("Unexpected EOF")),
+            Token::Eof => return Err("Unexpected EOF".to_string()),
         },
         None => return Err(format!("Syntax error, {}:{}", line!(), column!())),
     };

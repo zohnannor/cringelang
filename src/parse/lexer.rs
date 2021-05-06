@@ -5,7 +5,7 @@ use crate::stdlib::number::Number;
 
 use Operator::*;
 
-pub fn lex(source: &String) -> Result<Vec<Token>, String> {
+pub fn lex(source: &str) -> Result<Vec<Token>, String> {
     let mut tokens = vec![];
     let mut source: Peekable<Chars> = source.chars().peekable();
 
@@ -47,7 +47,7 @@ fn make_number(source: &mut Peekable<Chars>) -> Result<Number, String> {
                 number.push(ch);
                 dot_count += 1;
                 if dot_count > 1 {
-                    return Err(format!("Syntax Error"));
+                    return Err("Syntax Error".to_string());
                 };
                 source.next();
             }

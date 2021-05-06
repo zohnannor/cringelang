@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::parser::ASTNode;
+use super::parser::AstNode;
 use super::tokens::Operator::*;
 use crate::stdlib::{number::Number, object::Object};
 
@@ -17,7 +17,7 @@ impl Context {
         }
     }
 
-    fn get(&self, var_name: &String) -> Option<Object> {
+    fn get(&self, var_name: &str) -> Option<Object> {
         Some(match self.symbols.get(var_name) {
             Some(value) => *value,
             None => self.parent.as_ref()?.get(var_name)?,
@@ -29,17 +29,17 @@ impl Context {
     }
 }
 
-pub fn visit(node: ASTNode, context: &mut Context) -> Result<Object, String> {
+pub fn visit(node: AstNode, context: &mut Context) -> Result<Object, String> {
     Ok(match node {
-        ASTNode::Number(n) => Object::Number(n),
-        ASTNode::Bool(b) => Object::Bool(b),
-        ASTNode::UnOp(op, node) => match op {
+        AstNode::Number(n) => Object::Number(n),
+        AstNode::Bool(b) => Object::Bool(b),
+        AstNode::UnOp(op, node) => match op {
             Plus => visit(*node, context)?,
             Minus => visit(*node, context)?.mul(&Object::Number(Number::Int(-1)))?,
             Exclamation => visit(*node, context)?.not()?,
             _ => todo!(),
         },
-        ASTNode::BinOp(left_node, op, right_node) => match op {
+        AstNode::BinOp(left_node, op, right_node) => match op {
             Plus => visit(*left_node, context)?.add(&visit(*right_node, context)?)?,
             Minus => visit(*left_node, context)?.sub(&visit(*right_node, context)?)?,
             Star => visit(*left_node, context)?.mul(&visit(*right_node, context)?)?,
@@ -59,12 +59,12 @@ pub fn visit(node: ASTNode, context: &mut Context) -> Result<Object, String> {
             ExclamationEquals => visit(*left_node, context)?.ne(&visit(*right_node, context)?)?,
             _ => todo!(),
         },
-        ASTNode::VarCreate(var_name, node) => {
+        AstNode::VarCreate(var_name, node) => {
             let val = visit(*node, context)?;
             context.set(var_name, &val);
             val
         }
-        ASTNode::VarAssign(var_name, node) => {
+        AstNode::VarAssign(var_name, node) => {
             if context.symbols.contains_key(&var_name) {
                 let val = visit(*node, context)?;
                 context.set(var_name, &val);
@@ -73,7 +73,7 @@ pub fn visit(node: ASTNode, context: &mut Context) -> Result<Object, String> {
                 return Err(format!("Name '{}' is not defined", var_name));
             }
         }
-        ASTNode::VarAccess(var_name) => context
+        AstNode::VarAccess(var_name) => context
             .get(&var_name)
             .ok_or_else(|| format!("Name '{}' is not defined", var_name))?,
     })

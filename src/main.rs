@@ -16,7 +16,7 @@ fn main() {
     }
 }
 
-fn run_file(filename: &String) {
+fn run_file(filename: &str) {
     let source = fs::read_to_string(filename).unwrap();
     let tokens = lexer::lex(&source).expect("Failed to lex");
     let ast = parser::parse(tokens).expect("Failed to parse");

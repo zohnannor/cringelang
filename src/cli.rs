@@ -19,7 +19,7 @@ use crate::{
     Context,
 };
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 struct MyHelper {
     hinter: HistoryHinter,
@@ -46,7 +46,26 @@ impl Helper for MyHelper {}
 impl Validator for MyHelper {}
 impl Completer for MyHelper {
     type Candidate = String;
+
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        ctx: &rustyline::Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+        let _ = (line, pos, ctx);
+        if let Some(s) = self.hinter.hint(line, pos, ctx) {
+            return Ok((pos, vec![s]));
+        };
+        Ok((0, Vec::with_capacity(0)))
+    }
+
+    fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
+        let end = line.pos();
+        line.replace(start..end, elected)
+    }
 }
+
 impl Hinter for MyHelper {
     type Hint = String;
 
@@ -54,6 +73,7 @@ impl Hinter for MyHelper {
         self.hinter.hint(line, pos, ctx)
     }
 }
+
 impl Highlighter for MyHelper {
     fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
         let mut copy = line.to_owned();
@@ -82,13 +102,11 @@ fn highlight_numbers(s: &str) -> String {
 fn highlight_bools(s: &str) -> String {
     s.to_string()
         .replace("true", &"true".purple().to_string())
-        .to_string()
         .replace("false", &"false".purple().to_string())
-        .to_string()
 }
 
 fn highlight_items(res: Object) -> String {
-    highlight_bools(&highlight_numbers(&format!("{}", res).to_string()))
+    highlight_bools(&highlight_numbers(&format!("{}", res)))
 }
 
 pub fn run_repl() {
