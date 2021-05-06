@@ -106,20 +106,16 @@ impl Object {
     pub fn div(&self, other: &Object) -> Result<Object, String> {
         Ok(match (self, other) {
             (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (_, Number::Int(0)) => Number::Float(f64::INFINITY),
-                (_, Number::Float(n)) if n == 0.0 => Number::Float(f64::INFINITY),
                 (Number::Int(a), Number::Int(b)) => Number::Float(a as f64 / b as f64),
                 (Number::Int(a), Number::Float(b)) => Number::Float(a as f64 / b),
                 (Number::Float(a), Number::Int(b)) => Number::Float(a / b as f64),
                 (Number::Float(a), Number::Float(b)) => Number::Float(a / b),
             }),
             (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(0), _) => Number::Float(f64::INFINITY),
-                (Number::Float(n), _) if n == 0.0 => Number::Float(f64::INFINITY),
                 (Number::Int(n), Bool::True) => Number::Int(n),
-                (Number::Int(n), Bool::False) => Number::Float(f64::NAN),
+                (Number::Int(n), Bool::False) => Number::Float(f64::INFINITY),
                 (Number::Float(n), Bool::True) => Number::Float(n),
-                (Number::Float(n), Bool::False) => Number::Float(f64::NAN),
+                (Number::Float(n), Bool::False) => Number::Float(f64::INFINITY),
             }),
             (Object::Bool(_), Object::Number(_)) => other.div(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
@@ -149,19 +145,13 @@ impl Object {
                 (Number::Float(a), Number::Float(b)) => Number::Float(a % b),
             }),
             (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(0), _) => Number::Float(f64::NAN),
-                (Number::Float(n), _) if n == 0.0 => Number::Float(f64::NAN),
-                (Number::Int(n), Bool::True) => Number::Int(0),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Float(0.0),
-                (Number::Float(n), Bool::False) => Number::Float(n),
+                (_, Bool::True) => Number::Int(0),
+                (_, Bool::False) => Number::Float(f64::NAN),
             }),
             (Object::Bool(_), Object::Number(_)) => other.r#mod(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(0),
-                (Bool::True, Bool::False) => Number::Float(f64::NAN),
-                (Bool::False, Bool::True) => Number::Int(0),
-                (Bool::False, Bool::False) => Number::Float(f64::NAN),
+                (_, Bool::True) => Number::Int(0),
+                (_, Bool::False) => Number::Float(f64::NAN),
             }),
             (a, b) => {
                 return Err(format!(
