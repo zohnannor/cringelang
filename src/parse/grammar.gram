@@ -2,22 +2,30 @@ createvar     : 'let' ident '=' comparison
               : comparison
 
 comparison    : '!' comparison
-              : expr (('=='|'!='|'>'|'<'|'>='|'<=') expr)*
+              : bitor (('=='|'!='|'>'|'<'|'>='|'<=') bitor)*
+
+bitor         : bitxor ('|' bitxor)*
+bitxor        : bitand ('^' bitand)*
+bitand        : shift ('&' shift)*
+shift         : expr (('>>'|'<<') expr)*
 
 expr          : term (('+'|'-') term)*
 
 term          : factor (('*'|'/'|'%') factor)*
 
 factor        : ('+'|'-') factor
-              | power
+              : power
 
 power         : atom ('**' factor)*
 
-atom          : (number|ident|bool)
+atom          : (number|ident|bool|string|char)
               : ident '=' comparison
-              | '(' comparison ')'
+              : '(' comparison ')'
 
-keyword       : abnormalfloat
+keyword       : abnormalfloat | 'let' | bool
+
+string        : '"' char* '"'
+char          : '\'' ('\u{0}'...'\u{d7ff}' | '\u{e000}'...'\u{10ffff}') '\''
 
 ident         : (firstletter|letters)+
 letters       : firstletter | '0'

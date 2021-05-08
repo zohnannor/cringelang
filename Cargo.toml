@@ -11,3 +11,6 @@ rustyline = "8.0.0"
 chrono = "0.4"
 colored = "2"
 regex = "1.4.6"
+
+[features]
+debug = []

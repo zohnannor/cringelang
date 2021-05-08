@@ -1,675 +1,569 @@
-use std::fmt::{Debug, Display};
+use std::{
+    cell::RefCell,
+    fmt::{Debug, Display},
+    ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub},
+    rc::Rc,
+};
 
-use super::{bool::Bool, number::Number};
+use super::ops::{Pow, TypeOf};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Object {
-    Number(Number),
-    Bool(Bool),
+    Number(f64),
+    Bool(bool),
+    String(Rc<RefCell<String>>),
+    Char(char),
 }
 
-#[allow(unused)]
-impl Object {
-    pub fn add(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a + b),
-                (Number::Int(a), Number::Float(b)) => Number::Float(a as f64 + b),
-                (Number::Float(a), Number::Int(b)) => Number::Float(a + b as f64),
-                (Number::Float(a), Number::Float(b)) => Number::Float(a + b),
+impl<'a> Add<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => Object::Number(a + b),
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => n + 1.0,
+                false => *n,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n + 1),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Float(n + 1.0),
-                (Number::Float(n), Bool::False) => Number::Float(n),
-            }),
-            (Object::Bool(_), Object::Number(_)) => other.add(self)?,
+            (Object::Bool(_), Object::Number(_)) => rhs.add(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(1),
-                (Bool::True, Bool::False) => Number::Int(1),
-                (Bool::False, Bool::True) => Number::Int(1),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 2.0,
+                (true, false) => 1.0,
+                (false, true) => 1.0,
+                (false, false) => 0.0,
             }),
+            (Object::Number(n), Object::String(s)) => {
+                Object::String(Rc::new(RefCell::new(format!("{}{}", n, s.borrow()))))
+            }
+            (Object::Bool(b), Object::String(s)) => {
+                Object::String(Rc::new(RefCell::new(format!("{}{}", b, s.borrow()))))
+            }
+            (Object::String(s1), Object::String(s2)) => Object::String(Rc::new(RefCell::new(
+                format!("{}{}", s1.borrow(), s2.borrow()),
+            ))),
+            (Object::Char(c), Object::String(s)) => {
+                Object::String(Rc::new(RefCell::new(format!("{}{}", c, s.borrow()))))
+            }
+            (Object::String(s), Object::Number(n)) => {
+                Object::String(Rc::new(RefCell::new(format!("{}{}", s.borrow(), n))))
+            }
+            (Object::String(s), Object::Bool(b)) => {
+                Object::String(Rc::new(RefCell::new(format!("{}{}", s.borrow(), b))))
+            }
+            (Object::String(s), Object::Char(c)) => {
+                Object::String(Rc::new(RefCell::new(format!("{}{}", s.borrow(), c))))
+            }
+            (Object::Char(c1), Object::Char(c2)) => Object::Char((*c1 as u8 + *c2 as u8) as char),
+            (Object::Number(n), Object::Char(c)) => Object::Char((*n as u8 + *c as u8) as char),
+
+            (Object::Char(_), Object::Number(_)) => rhs.add(self)?,
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     '+',
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn sub(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a - b),
-                (Number::Int(a), Number::Float(b)) => Number::Float(a as f64 - b),
-                (Number::Float(a), Number::Int(b)) => Number::Float(a - b as f64),
-                (Number::Float(a), Number::Float(b)) => Number::Float(a - b),
-            }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n - 1),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Float(n - 1.0),
-                (Number::Float(n), Bool::False) => Number::Float(n),
+}
+
+impl<'a> Sub<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => Object::Number(a - b),
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => n - 1.0,
+                false => *n,
             }),
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(0),
-                (Bool::True, Bool::False) => Number::Int(1),
-                (Bool::False, Bool::True) => Number::Int(-1),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 0.0,
+                (true, false) => 1.0,
+                (false, true) => -1.0,
+                (false, false) => 0.0,
             }),
-            (Object::Bool(_), Object::Number(_)) => other.sub(self)?,
+            (Object::Bool(b), Object::Number(n)) => Object::Number(match b {
+                true => 1.0 - n,
+                false => -n,
+            }),
+            (Object::String(_), Object::String(_)) => {
+                Object::Number(self.num()?).sub(&Object::Number(rhs.num()?))?
+            }
+            (Object::Number(_), Object::String(_)) => {
+                Object::Number(self.num()?).sub(&Object::Number(rhs.num()?))?
+            }
+            (Object::Bool(_), Object::String(_)) => {
+                Object::Number(self.num()?).sub(&Object::Number(rhs.num()?))?
+            }
+            (Object::Char(_), Object::String(_)) => {
+                Object::Number(self.num()?).sub(&Object::Number(rhs.num()?))?
+            }
+            (Object::String(_), Object::Number(_)) => {
+                Object::Number(self.num()?).sub(&Object::Number(rhs.num()?))?
+            }
+            (Object::String(_), Object::Bool(_)) => {
+                Object::Number(self.num()?).sub(&Object::Number(rhs.num()?))?
+            }
+            (Object::String(_), Object::Char(_)) => {
+                Object::Number(self.num()?).sub(&Object::Number(rhs.num()?))?
+            }
+            (Object::Char(c1), Object::Char(c2)) => Object::Char((*c1 as u8 - *c2 as u8) as char),
+            (Object::Number(n), Object::Char(c)) => {
+                Object::Char((*n as u8).wrapping_sub(*c as u8) as char)
+            }
+            (Object::Char(c), Object::Number(n)) => {
+                Object::Char((*c as u8).wrapping_sub(*n as u8) as char)
+            }
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     '-',
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn mul(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a * b),
-                (Number::Int(a), Number::Float(b)) => Number::Float(a as f64 * b),
-                (Number::Float(a), Number::Int(b)) => Number::Float(a * b as f64),
-                (Number::Float(a), Number::Float(b)) => Number::Float(a * b),
+}
+
+impl<'a> Mul<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn mul(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => Object::Number(a * b),
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => *n,
+                false => 0.0,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n),
-                (Number::Int(n), Bool::False) => Number::Int(0),
-                (Number::Float(n), Bool::True) => Number::Float(n),
-                (Number::Float(n), Bool::False) => Number::Float(0.0),
-            }),
-            (Object::Bool(_), Object::Number(_)) => other.mul(self)?,
+            (Object::Bool(_), Object::Number(_)) => rhs.mul(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(1),
-                (Bool::True, Bool::False) => Number::Int(0),
-                (Bool::False, Bool::True) => Number::Int(0),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 1.0,
+                (true, false) => 0.0,
+                (false, true) => 0.0,
+                (false, false) => 0.0,
             }),
+            (Object::Number(n), Object::String(s)) => {
+                if n.fract() == 0.0 {
+                    Object::String(Rc::new(RefCell::new(if n.is_sign_positive() {
+                        s.borrow().repeat(*n as usize)
+                    } else {
+                        "".to_string()
+                    })))
+                } else {
+                    return Err("Can't repeat string fractional number of times".to_string());
+                }
+            }
+            (Object::String(_), Object::Number(_)) => rhs.mul(self)?,
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     '*',
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn div(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Float(a as f64 / b as f64),
-                (Number::Int(a), Number::Float(b)) => Number::Float(a as f64 / b),
-                (Number::Float(a), Number::Int(b)) => Number::Float(a / b as f64),
-                (Number::Float(a), Number::Float(b)) => Number::Float(a / b),
+}
+
+impl<'a> Div<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn div(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => Object::Number(a / b),
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => *n,
+                false => f64::INFINITY,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n),
-                (Number::Int(n), Bool::False) => Number::Float(f64::INFINITY),
-                (Number::Float(n), Bool::True) => Number::Float(n),
-                (Number::Float(n), Bool::False) => Number::Float(f64::INFINITY),
+            (Object::Bool(b), Object::Number(n)) => Object::Number(match b {
+                true => n.recip(),
+                false => 0.0,
             }),
-            (Object::Bool(_), Object::Number(_)) => other.div(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(1),
-                (Bool::True, Bool::False) => Number::Float(f64::INFINITY),
-                (Bool::False, Bool::True) => Number::Float(0.0),
-                (Bool::False, Bool::False) => Number::Float(f64::INFINITY),
+                (true, true) => 1.0,
+                (true, false) => f64::INFINITY,
+                (false, true) => 0.0,
+                (false, false) => f64::INFINITY,
             }),
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     '/',
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn r#mod(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (_, Number::Int(0)) => Number::Float(f64::NAN),
-                (_, Number::Float(n)) if n == 0.0 => Number::Float(f64::NAN),
-                (Number::Int(a), Number::Int(b)) => Number::Int(a % b),
-                (Number::Int(a), Number::Float(b)) => Number::Float(a as f64 % b),
-                (Number::Float(a), Number::Int(b)) => Number::Float(a % b as f64),
-                (Number::Float(a), Number::Float(b)) => Number::Float(a % b),
+}
+
+impl<'a> Pow<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn pow(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(n), Object::Number(m)) => Object::Number(if *n == 0.0 && *m == 0.0 {
+                f64::NAN
+            } else {
+                n.powf(*m)
             }),
             (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (_, Bool::True) => Number::Int(0),
-                (_, Bool::False) => Number::Float(f64::NAN),
+                (n, false) if n == 0.0 => f64::NAN,
+                (_, false) => 1.0,
+                (n, true) => n,
             }),
-            (Object::Bool(_), Object::Number(_)) => other.r#mod(self)?,
+            (Object::Bool(b), Object::Number(n)) => Object::Number(match (*b, *n) {
+                (false, n) if n == 0.0 => f64::NAN,
+                (false, _) => 0.0,
+                (true, _) => 1.0,
+            }),
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (_, Bool::True) => Number::Int(0),
-                (_, Bool::False) => Number::Float(f64::NAN),
-            }),
-            (a, b) => {
-                return Err(format!(
-                    "Operator '{}' is not supported for types {} and {}",
-                    '%',
-                    a.class_name(),
-                    b.class_name()
-                ))
-            }
-        })
-    }
-    pub fn pow(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(0), Number::Int(0)) => Number::Float(f64::NAN),
-                (Number::Int(0), Number::Float(n)) if n == 0.0 => Number::Float(f64::NAN),
-                (Number::Float(n), Number::Int(0)) if n == 0.0 => Number::Float(f64::NAN),
-                (Number::Float(n), Number::Float(m)) if n == 0.0 && m == 0.0 => {
-                    Number::Float(f64::NAN)
-                }
-                (Number::Int(a), Number::Int(b)) => Number::Float((a as f64).powf(b as f64)),
-                (Number::Int(a), Number::Float(b)) => Number::Float((a as f64).powf(b)),
-                (Number::Float(a), Number::Int(b)) => Number::Float(a.powf(b as f64)),
-                (Number::Float(a), Number::Float(b)) => Number::Float(a.powf(b)),
-            }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(0), Bool::False) => Number::Float(f64::NAN),
-                (Number::Float(n), Bool::False) if n == 0.0 => Number::Float(f64::NAN),
-                (Number::Int(n), Bool::True) => Number::Int(n),
-                (Number::Int(_), Bool::False) => Number::Int(1),
-                (Number::Float(n), Bool::True) => Number::Float(n),
-                (Number::Float(_), Bool::False) => Number::Int(1),
-            }),
-            (Object::Bool(_), Object::Number(_)) => other.pow(self)?,
-            (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(1),
-                (Bool::True, Bool::False) => Number::Int(1),
-                (Bool::False, Bool::True) => Number::Int(0),
-                (Bool::False, Bool::False) => Number::Float(f64::NAN),
+                (true, true) => 1.0,
+                (true, false) => 1.0,
+                (false, true) => 0.0,
+                (false, false) => f64::NAN,
             }),
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     "**",
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
+}
 
-    pub fn not(&self) -> Result<Object, String> {
+impl<'a> Rem<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn rem(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => Object::Number(a % b),
+            (Object::Number(_), Object::Bool(b)) => Object::Number(match b {
+                true => 0.0,
+                false => f64::NAN,
+            }),
+            (Object::Bool(b), Object::Number(_)) => Object::Number(match b {
+                true => 0.0,
+                false => 1.0,
+            }),
+            (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
+                (_, true) => 0.0,
+                (_, false) => f64::NAN,
+            }),
+            (a, b) => {
+                return Err(format!(
+                    "Operator '{}' is not supported for types {} and {}",
+                    '%',
+                    a.r#typeof(),
+                    b.r#typeof()
+                ))
+            }
+        })
+    }
+}
+
+impl<'a> Not for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn not(self) -> Self::Output {
         Ok(Object::Bool(match self {
-            Object::Number(n) => match *n {
-                Number::Int(n) => {
-                    if n == 0i128 {
-                        Bool::True
-                    } else {
-                        Bool::False
-                    }
-                }
-                Number::Float(n) => {
-                    if n == 0.0 {
-                        Bool::True
-                    } else {
-                        Bool::False
-                    }
-                }
-            },
-            Object::Bool(b) => match b {
-                Bool::True => Bool::False,
-                Bool::False => Bool::True,
-            },
+            Object::Number(n) => *n == 0.0 || n.is_nan(),
+            Object::Bool(b) => !b,
             _ => {
                 return Err(format!(
                     "Operator '{}' is not supported for type {}",
                     '!',
-                    self.class_name()
+                    self.r#typeof()
                 ))
             }
         }))
     }
-    pub fn orb(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a | b),
-                (Number::Int(a), Number::Float(b)) => Number::Int(a | (b as i128)),
-                (Number::Float(a), Number::Int(b)) => Number::Int((a as i128) | b),
-                (Number::Float(a), Number::Float(b)) => Number::Int((a as i128) | (b as i128)),
+}
+
+impl<'a> BitOr<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn bitor(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => {
+                Object::Number(((*a as i64) | (*b as i64)) as f64)
+            }
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => ((*n as i64) | 1) as f64,
+                false => *n,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n | 1),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Int((n as i128) | 1),
-                (Number::Float(n), Bool::False) => Number::Int(n as i128),
-            }),
-            (Object::Bool(_), Object::Number(_)) => other.orb(self)?,
+            (Object::Bool(_), Object::Number(_)) => rhs.bitor(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(1),
-                (Bool::True, Bool::False) => Number::Int(1),
-                (Bool::False, Bool::True) => Number::Int(1),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 1.0,
+                (true, false) => 1.0,
+                (false, true) => 1.0,
+                (false, false) => 0.0,
             }),
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     '|',
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn andb(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a & b),
-                (Number::Int(a), Number::Float(b)) => Number::Int(a & (b as i128)),
-                (Number::Float(a), Number::Int(b)) => Number::Int((a as i128) & b),
-                (Number::Float(a), Number::Float(b)) => Number::Int((a as i128) & (b as i128)),
+}
+
+impl<'a> BitAnd<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn bitand(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => {
+                Object::Number(((*a as i64) & (*b as i64)) as f64)
+            }
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => ((*n as i64) & 1) as f64,
+                false => 0.0,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n & 1),
-                (Number::Int(_), Bool::False) => Number::Int(0),
-                (Number::Float(n), Bool::True) => Number::Int((n as i128) & 1),
-                (Number::Float(_), Bool::False) => Number::Int(0),
-            }),
-            (Object::Bool(_), Object::Number(_)) => other.andb(self)?,
+            (Object::Bool(_), Object::Number(_)) => rhs.bitand(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(1),
-                (Bool::True, Bool::False) => Number::Int(0),
-                (Bool::False, Bool::True) => Number::Int(0),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 1.0,
+                (true, false) => 0.0,
+                (false, true) => 0.0,
+                (false, false) => 0.0,
             }),
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     '&',
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn xor(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a ^ b),
-                (Number::Int(a), Number::Float(b)) => Number::Int(a ^ (b as i128)),
-                (Number::Float(a), Number::Int(b)) => Number::Int((a as i128) ^ b),
-                (Number::Float(a), Number::Float(b)) => Number::Int((a as i128) ^ (b as i128)),
+}
+
+impl<'a> BitXor<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn bitxor(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => {
+                Object::Number(((*a as i64) ^ (*b as i64)) as f64)
+            }
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => ((*n as i64) ^ 1) as f64,
+                false => *n,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n ^ 1),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Int((n as i128) ^ 1),
-                (Number::Float(n), Bool::False) => Number::Int(n as i128),
-            }),
-            (Object::Bool(_), Object::Number(_)) => other.xor(self)?,
+            (Object::Bool(_), Object::Number(_)) => rhs.bitxor(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(0),
-                (Bool::True, Bool::False) => Number::Int(1),
-                (Bool::False, Bool::True) => Number::Int(1),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 0.0,
+                (true, false) => 1.0,
+                (false, true) => 1.0,
+                (false, false) => 0.0,
             }),
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     '^',
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn rsh(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a >> b),
-                (Number::Int(a), Number::Float(b)) => Number::Int(a >> (b as i128)),
-                (Number::Float(a), Number::Int(b)) => Number::Int((a as i128) >> b),
-                (Number::Float(a), Number::Float(b)) => Number::Int((a as i128) >> (b as i128)),
+}
+
+impl<'a> Shr<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn shr(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => {
+                Object::Number(((*a as i64).wrapping_shr(*b as u32)) as f64)
+            }
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => ((*n as i64).wrapping_shr(1)) as f64,
+                false => *n,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n >> 1),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Int((n as i128) >> 1),
-                (Number::Float(n), Bool::False) => Number::Int(n as i128),
-            }),
-            (Object::Bool(_), Object::Number(_)) => other.rsh(self)?,
+            (Object::Bool(_), Object::Number(_)) => Object::Number(0.0),
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(0),
-                (Bool::True, Bool::False) => Number::Int(1),
-                (Bool::False, Bool::True) => Number::Int(0),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 0.0,
+                (true, false) => 1.0,
+                (false, true) => 0.0,
+                (false, false) => 0.0,
             }),
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     ">>",
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
-    pub fn lsh(&self, other: &Object) -> Result<Object, String> {
-        Ok(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => Object::Number(match (*a, *b) {
-                (Number::Int(a), Number::Int(b)) => Number::Int(a << b),
-                (Number::Int(a), Number::Float(b)) => Number::Int(a << (b as i128)),
-                (Number::Float(a), Number::Int(b)) => Number::Int((a as i128) << b),
-                (Number::Float(a), Number::Float(b)) => Number::Int((a as i128) << (b as i128)),
+}
+
+impl<'a> Shl<&'a Object> for &'a Object {
+    type Output = Result<Object, String>;
+
+    fn shl(self, rhs: &'a Object) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Object::Number(a), Object::Number(b)) => {
+                Object::Number(((*a as i64).wrapping_shl(*b as u32)) as f64)
+            }
+            (Object::Number(n), Object::Bool(b)) => Object::Number(match b {
+                true => ((*n as i64).wrapping_shl(1)) as f64,
+                false => *n,
             }),
-            (Object::Number(n), Object::Bool(b)) => Object::Number(match (*n, *b) {
-                (Number::Int(n), Bool::True) => Number::Int(n << 1),
-                (Number::Int(n), Bool::False) => Number::Int(n),
-                (Number::Float(n), Bool::True) => Number::Int((n as i128) << 1),
-                (Number::Float(n), Bool::False) => Number::Int(n as i128),
+            (Object::Bool(b), Object::Number(n)) => Object::Number(match b {
+                true => (1_i32.wrapping_shl(*n as u32)) as f64,
+                false => 0.0,
             }),
-            (Object::Bool(_), Object::Number(_)) => other.rsh(self)?,
             (Object::Bool(b1), Object::Bool(b2)) => Object::Number(match (b1, b2) {
-                (Bool::True, Bool::True) => Number::Int(2),
-                (Bool::True, Bool::False) => Number::Int(1),
-                (Bool::False, Bool::True) => Number::Int(0),
-                (Bool::False, Bool::False) => Number::Int(0),
+                (true, true) => 2.0,
+                (true, false) => 1.0,
+                (false, true) => 0.0,
+                (false, false) => 0.0,
             }),
             (a, b) => {
                 return Err(format!(
                     "Operator '{}' is not supported for types {} and {}",
                     "<<",
-                    a.class_name(),
-                    b.class_name()
+                    a.r#typeof(),
+                    b.r#typeof()
                 ))
             }
         })
     }
+}
 
-    pub fn eq(&self, other: &Object) -> Result<Object, String> {
-        Ok(Object::Bool(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => {
-                if match (*a, *b) {
-                    (Number::Int(a), Number::Int(b)) => a == b,
-                    (Number::Int(a), Number::Float(b)) => (a as f64) == b,
-                    (Number::Float(a), Number::Int(b)) => a == (b as f64),
-                    (Number::Float(a), Number::Float(b)) => a == b,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Number(_), Object::Bool(_)) => Bool::False,
-            (Object::Bool(_), Object::Number(_)) => Bool::False,
-            (Object::Bool(b1), Object::Bool(b2)) => match (b1, b2) {
-                (Bool::True, Bool::True) => Bool::True,
-                (Bool::True, Bool::False) => Bool::False,
-                (Bool::False, Bool::True) => Bool::False,
-                (Bool::False, Bool::False) => Bool::True,
-            },
-            (a, b) => {
-                return Err(format!(
-                    "Operator '{}' is not supported between types {} and {}",
-                    "==",
-                    self.class_name(),
-                    other.class_name()
-                ))
-            }
-        }))
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Object::Number(a), Object::Number(b)) => (*a).eq(b),
+            (Object::Bool(b1), Object::Bool(b2)) => b1.eq(b2),
+            (Object::String(s1), Object::String(s2)) => s1.borrow().eq(&*s2.borrow()),
+            (Object::Char(c1), Object::Char(c2)) => c1.eq(c2),
+            _ => false,
+        }
     }
-    pub fn ne(&self, other: &Object) -> Result<Object, String> {
-        Ok(Object::Bool(
-            if let Object::Bool(Bool::True) = self.eq(other).map_err(|_err| {
-                format!(
-                    "Operator '{}' is not supported between types {} and {}",
-                    "!=",
-                    self.class_name(),
-                    other.class_name()
-                )
-            })? {
-                Bool::False
-            } else {
-                Bool::True
+}
+
+impl PartialOrd for Object {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Object::Number(a), Object::Number(b)) => a.partial_cmp(b),
+            (Object::Bool(b), Object::Number(n)) => match (*b, n) {
+                (true, n) => 1.0.partial_cmp(n),
+                (false, n) => 0.0.partial_cmp(n),
             },
-        ))
+            (Object::Number(_), Object::Bool(_)) => other.partial_cmp(self),
+            (Object::Bool(b1), Object::Bool(b2)) => b1.partial_cmp(b2),
+            (Object::String(s1), Object::String(s2)) => s1.borrow().partial_cmp(&*s2.borrow()),
+            (Object::Char(c1), Object::Char(c2)) => c1.partial_cmp(c2),
+            _ => None,
+        }
     }
-    pub fn gt(&self, other: &Object) -> Result<Object, String> {
-        Ok(Object::Bool(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => {
-                if match (*a, *b) {
-                    (Number::Int(a), Number::Int(b)) => a > b,
-                    (Number::Int(a), Number::Float(b)) => (a as f64) > b,
-                    (Number::Float(a), Number::Int(b)) => a > (b as f64),
-                    (Number::Float(a), Number::Float(b)) => a > b,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Number(n), Object::Bool(b)) => {
-                if match (*n, b) {
-                    (Number::Int(n), Bool::True) => n > 1,
-                    (Number::Int(n), Bool::False) => n > 0,
-                    (Number::Float(n), Bool::True) => n > 1.0,
-                    (Number::Float(n), Bool::False) => n > 0.0,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Bool(_), Object::Number(_)) => return other.lt(self),
-            (Object::Bool(b1), Object::Bool(b2)) => match (b1, b2) {
-                (Bool::True, Bool::True) => Bool::False,
-                (Bool::True, Bool::False) => Bool::True,
-                (Bool::False, Bool::True) => Bool::False,
-                (Bool::False, Bool::False) => Bool::False,
-            },
-            (a, b) => {
-                return Err(format!(
-                    "Operator '{}' is not supported between types {} and {}",
-                    '>',
-                    self.class_name(),
-                    other.class_name()
-                ))
-            }
-        }))
+}
+
+// #[allow(unused)]
+impl Object {
+    pub fn eq(&self, other: &Object) -> Object {
+        Object::Bool(self == other)
     }
-    pub fn lt(&self, other: &Object) -> Result<Object, String> {
-        Ok(Object::Bool(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => {
-                if match (*a, *b) {
-                    (Number::Int(a), Number::Int(b)) => a < b,
-                    (Number::Int(a), Number::Float(b)) => (a as f64) < b,
-                    (Number::Float(a), Number::Int(b)) => a < (b as f64),
-                    (Number::Float(a), Number::Float(b)) => a < b,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Number(n), Object::Bool(b)) => {
-                if match (*n, b) {
-                    (Number::Int(n), Bool::True) => n < 1,
-                    (Number::Int(n), Bool::False) => n < 0,
-                    (Number::Float(n), Bool::True) => n < 1.0,
-                    (Number::Float(n), Bool::False) => n < 0.0,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Bool(_), Object::Number(_)) => return other.gt(self),
-            (Object::Bool(b1), Object::Bool(b2)) => match (b1, b2) {
-                (Bool::True, Bool::True) => Bool::False,
-                (Bool::True, Bool::False) => Bool::False,
-                (Bool::False, Bool::True) => Bool::True,
-                (Bool::False, Bool::False) => Bool::False,
-            },
-            (a, b) => {
-                return Err(format!(
-                    "Operator '{}' is not supported between types {} and {}",
-                    '<',
-                    self.class_name(),
-                    other.class_name()
-                ))
-            }
-        }))
-    }
-    pub fn gte(&self, other: &Object) -> Result<Object, String> {
-        Ok(Object::Bool(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => {
-                if match (*a, *b) {
-                    (Number::Int(a), Number::Int(b)) => a >= b,
-                    (Number::Int(a), Number::Float(b)) => (a as f64) >= b,
-                    (Number::Float(a), Number::Int(b)) => a >= (b as f64),
-                    (Number::Float(a), Number::Float(b)) => a >= b,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Number(n), Object::Bool(b)) => {
-                if match (*n, b) {
-                    (Number::Int(n), Bool::True) => n >= 1,
-                    (Number::Int(n), Bool::False) => n >= 0,
-                    (Number::Float(n), Bool::True) => n >= 1.0,
-                    (Number::Float(n), Bool::False) => n >= 0.0,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Bool(_), Object::Number(_)) => return other.lte(self),
-            (Object::Bool(b1), Object::Bool(b2)) => match (b1, b2) {
-                (Bool::True, Bool::True) => Bool::True,
-                (Bool::True, Bool::False) => Bool::True,
-                (Bool::False, Bool::True) => Bool::False,
-                (Bool::False, Bool::False) => Bool::True,
-            },
-            (a, b) => {
-                return Err(format!(
-                    "Operator '{}' is not supported between types {} and {}",
-                    ">=",
-                    self.class_name(),
-                    other.class_name()
-                ))
-            }
-        }))
-    }
-    pub fn lte(&self, other: &Object) -> Result<Object, String> {
-        Ok(Object::Bool(match (self, other) {
-            (Object::Number(a), Object::Number(b)) => {
-                if match (*a, *b) {
-                    (Number::Int(a), Number::Int(b)) => a <= b,
-                    (Number::Int(a), Number::Float(b)) => (a as f64) <= b,
-                    (Number::Float(a), Number::Int(b)) => a <= (b as f64),
-                    (Number::Float(a), Number::Float(b)) => a <= b,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Number(n), Object::Bool(b)) => {
-                if match (*n, b) {
-                    (Number::Int(n), Bool::True) => n <= 1,
-                    (Number::Int(n), Bool::False) => n <= 0,
-                    (Number::Float(n), Bool::True) => n <= 1.0,
-                    (Number::Float(n), Bool::False) => n <= 0.0,
-                } {
-                    Bool::True
-                } else {
-                    Bool::False
-                }
-            }
-            (Object::Bool(_), Object::Number(_)) => return other.gte(self),
-            (Object::Bool(b1), Object::Bool(b2)) => match (b1, b2) {
-                (Bool::True, Bool::True) => Bool::True,
-                (Bool::True, Bool::False) => Bool::False,
-                (Bool::False, Bool::True) => Bool::True,
-                (Bool::False, Bool::False) => Bool::True,
-            },
-            (a, b) => {
-                return Err(format!(
-                    "Operator '{}' is not supported between types {} and {}",
-                    "<=",
-                    self.class_name(),
-                    other.class_name()
-                ))
-            }
-        }))
+    pub fn ne(&self, other: &Object) -> Object {
+        Object::Bool(self != other)
     }
 
+    pub fn gt(&self, other: &Object) -> Object {
+        Object::Bool(self > other)
+    }
+    pub fn lt(&self, other: &Object) -> Object {
+        Object::Bool(self < other)
+    }
+    pub fn gte(&self, other: &Object) -> Object {
+        Object::Bool(self >= other)
+    }
+    pub fn lte(&self, other: &Object) -> Object {
+        Object::Bool(self <= other)
+    }
+
+    #[allow(unused_variables)]
     pub fn idx(&self, idx: isize) -> Result<Object, String> {
         Err(format!(
             "Object of type {} can not be indexed",
-            self.class_name(),
+            self.r#typeof(),
         ))
     }
 
     // pub fn call(&self, params, body) -> Result<Object, String> {
     //     Err(format!(
     //         "Object of type {} is not callable",
-    //         self.class_name(),
+    //         self.r#typeof(),
     //     ))
     // }
 
-    pub fn bool(&self) -> Bool {
+    pub fn bool(&self) -> bool {
         match self {
-            Object::Number(n) => {
-                if match *n {
-                    Number::Int(n) => n == 0,
-                    Number::Float(n) => n == 0.0,
-                } {
-                    Bool::False
-                } else {
-                    Bool::True
-                }
-            }
+            Object::Number(n) => *n != 0.0,
             Object::Bool(b) => *b,
+            Object::String(s) => s.borrow().is_empty(),
+            Object::Char(c) => *c != '\0',
         }
     }
 
-    pub fn num(&self) -> Result<Number, String> {
-        Err(format!(
-            "{} can not be converted to Number",
-            self.class_name()
-        ))
+    pub fn num(&self) -> Result<f64, String> {
+        Ok(match self {
+            Object::Number(n) => *n,
+            Object::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            Object::String(s) => s.borrow().parse::<f64>().unwrap_or(f64::NAN),
+            Object::Char(c) => *c as i64 as f64,
+            _ => {
+                return Err(format!(
+                    "{} can not be converted to Number",
+                    self.r#typeof()
+                ))
+            }
+        })
     }
+
     pub fn str(&self) -> String {
         self.repr()
     }
 
     pub fn repr(&self) -> String {
         match self {
-            Object::Number(n) => match n {
-                Number::Int(n) => n.to_string(),
-                Number::Float(n) => n.to_string(),
-            },
+            Object::Number(n) => n.to_string(),
             Object::Bool(b) => b.to_string(),
-            _ => format!(
-                "<{} object at {:?}>",
-                self.class_name(),
-                self as *const Self
-            ),
+            Object::Char(c) => format!("{:?}", c),
+            Object::String(s) => format!("{:?}", s.borrow()),
+            _ => format!("<{} object at {:?}>", self.r#typeof(), self as *const Self),
         }
     }
+}
 
-    fn class_name(&self) -> String {
+impl TypeOf for &Object {
+    fn r#typeof(self) -> String {
         match self {
             Object::Number(_) => "Number".to_string(),
             Object::Bool(_) => "Bool".to_string(),
+            Object::String(_) => "String".to_string(),
+            Object::Char(_) => "Char".to_string(),
         }
     }
 }

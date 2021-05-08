@@ -142,7 +142,10 @@ pub fn run_repl() {
                         continue;
                     }
                 };
-                // println!("{:?}", tokens);
+
+                #[cfg(feature = "debug")]
+                println!("{:?}", tokens);
+
                 let ast = match parser::parse(tokens) {
                     Ok(ast) => ast,
                     Err(msg) => {
@@ -150,7 +153,10 @@ pub fn run_repl() {
                         continue;
                     }
                 };
-                // println!("{:?}", ast);
+
+                #[cfg(feature = "debug")]
+                println!("{:?}", ast);
+
                 let res = interpreter::visit(ast, &mut global_sym_table);
                 match res {
                     Ok(res) => println!("{}", highlight_items(res)),

@@ -1,7 +1,6 @@
 use std::{iter::Peekable, str::Chars};
 
 use super::tokens::{Operator, Parenthesis, Token};
-use crate::stdlib::number::Number;
 
 use Operator::*;
 
@@ -18,11 +17,17 @@ pub fn lex(source: &str) -> Result<Vec<Token>, String> {
                 tokens.push(Token::Ident(make_name(&mut source)));
             }
             '=' | '+' | '-' | '*' | '/' | '%' | '!' | '>' | '<' | ':' | ';' | '(' | ')' | '['
-            | ']' | '{' | '}' => {
+            | ']' | '{' | '}' | '|' | '^' | '&' => {
                 tokens.push(Token::Operator(make_operator(&mut source)));
             }
             ' ' | '\n' | '\r' | '\t' => {
                 source.next();
+            }
+            '"' => {
+                tokens.push(Token::String(make_string(&mut source)?));
+            }
+            '\'' => {
+                tokens.push(Token::Char(make_char(&mut source)?));
             }
             _ => {
                 return Err(format!("Unexpected token: `{}`", source.next().unwrap()));
@@ -34,8 +39,69 @@ pub fn lex(source: &str) -> Result<Vec<Token>, String> {
     Ok(tokens)
 }
 
-fn make_number(source: &mut Peekable<Chars>) -> Result<Number, String> {
-    let mut dot_count = if source.peek().unwrap() == &'.' { 1 } else { 0 };
+fn make_string(source: &mut Peekable<Chars>) -> Result<String, String> {
+    source.next();
+    let mut s = String::new();
+    while let Some(&ch) = source.peek() {
+        match ch {
+            '"' => break,
+            '\\' => s.push(make_escape_sequence_char(source)?),
+            _ => s.push(source.next().unwrap()),
+        };
+    }
+    match source.peek() {
+        Some('"') => {
+            source.next();
+            Ok(s)
+        }
+        _ => Err("Syntax Error: Expected closing `\"`".to_string()),
+    }
+}
+
+fn make_char(source: &mut Peekable<Chars>) -> Result<char, String> {
+    source.next();
+    let c = match source.peek() {
+        Some(&ch) => match ch {
+            '\\' => make_escape_sequence_char(source)?,
+            '\'' => return Err("Syntax Error: Empty char literal".to_string()),
+            _ => source.next().unwrap(),
+        },
+        None => return Err("Syntax Error: Unexpected EOL".to_string()),
+    };
+    match source.peek() {
+        Some('\'') => {
+            source.next();
+            Ok(c)
+        }
+        Some(_) => Err("Syntax Error: Literal must me one character long ".to_string()),
+        None => Err("Syntax Error: Expected closing `\'`".to_string()),
+    }
+}
+
+fn make_escape_sequence_char(source: &mut Peekable<Chars>) -> Result<char, String> {
+    source.next();
+    let c = match source.peek() {
+        Some('n') => '\n',
+        Some('r') => '\r',
+        Some('t') => '\t',
+        Some('0') => '\0',
+        Some('"') => '"',
+        Some('\\') => '\\',
+        Some('\'') => '\'',
+        Some(c) => {
+            return Err(format!(
+                "Syntax Error: Unknown escape sequence character: {:?}",
+                *c
+            ))
+        }
+        None => return Err("Syntax Error: Unexpected EOL".to_string()),
+    };
+    source.next();
+    Ok(c)
+}
+
+fn make_number(source: &mut Peekable<Chars>) -> Result<f64, String> {
+    // let mut dot_count = if source.peek().unwrap() == &'.' { 1 } else { 0 };
     let mut number = source.next().unwrap().to_string();
     while let Some(&ch) = source.peek() {
         match ch {
@@ -43,23 +109,23 @@ fn make_number(source: &mut Peekable<Chars>) -> Result<Number, String> {
                 number.push(ch);
                 source.next();
             }
-            '.' => {
-                number.push(ch);
-                dot_count += 1;
-                if dot_count > 1 {
-                    return Err("Syntax Error".to_string());
-                };
-                source.next();
-            }
+            // '.' => {
+            //     number.push(ch);
+            //     dot_count += 1;
+            //     if dot_count > 1 {
+            //         return Err("Syntax Error".to_string());
+            //     };
+            //     source.next();
+            // }
             _ => break,
         };
     }
 
-    Ok(if dot_count == 1 {
-        Number::Float(number.parse::<f64>().map_err(|err| err.to_string())?)
-    } else {
-        Number::Int(number.parse::<i128>().map_err(|err| err.to_string())?)
-    })
+    // Ok(if dot_count == 1 {
+    number.parse::<f64>().map_err(|err| err.to_string())
+    // } else {
+    //     Number::Int(number.parse::<i128>().map_err(|err| err.to_string())?)
+    // })
 }
 
 fn make_name(source: &mut Peekable<Chars>) -> String {

@@ -1,5 +1,3 @@
-use crate::stdlib::number::Number;
-
 #[derive(Debug, Clone, Copy)]
 pub enum Parenthesis {
     LParen,
@@ -39,7 +37,9 @@ pub enum Operator {
 
 #[derive(Debug)]
 pub enum Token {
-    Number(Number),
+    Number(f64),
+    Char(char),
+    String(String),
     Ident(String),
     Operator(Operator),
     Eof,
