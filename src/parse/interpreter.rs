@@ -5,8 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use super::parser::AstNode;
-use super::tokens::Operator::*;
+use super::{parser::AstNode, tokens::Operator::*};
 use crate::stdlib::{object::Object, ops::Pow};
 
 #[derive(Default, Debug)]

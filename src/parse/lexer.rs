@@ -1,8 +1,9 @@
 use std::{iter::Peekable, str::Chars};
 
-use super::tokens::{Operator, Parenthesis, Token};
-
-use Operator::*;
+use super::tokens::{
+    Operator::{self, *},
+    Parenthesis, Token,
+};
 
 pub fn lex(source: &str) -> Result<Vec<Token>, String> {
     let mut tokens = vec![];
