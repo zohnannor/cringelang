@@ -7,12 +7,9 @@ use parse::{interpreter, lexer, parser, Context};
 use std::{env, fs};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    if let Some(filename) = args.get(1) {
-        run_file(filename);
-    } else {
-        run_repl();
+    match env::args().nth(1) {
+        Some(filename) => run_file(&filename),
+        None => run_repl(),
     }
 }
 
